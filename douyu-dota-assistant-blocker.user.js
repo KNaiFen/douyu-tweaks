@@ -1,7 +1,8 @@
 // ==UserScript==
 // @name         去掉斗鱼的刀塔助手
 // @namespace    douyu-dota-assistant-blocker
-// @version      0.1.2
+// @version      0.1.3
+// @license MIT
 // @description  阻止斗鱼刀塔助手启动，移除英雄、技能和装备悬停层及助手入口。
 // @homepageURL  https://github.com/KNaiFen/douyu-dota-assistant-blocker
 // @supportURL   https://github.com/KNaiFen/douyu-dota-assistant-blocker/issues
