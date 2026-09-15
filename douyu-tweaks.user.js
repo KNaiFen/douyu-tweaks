@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         改掉斗鱼各种烦人的地方
 // @namespace    douyu-tweaks
-// @version      0.2.0
+// @version      0.3.0
 // @license MIT
 // @description  按需关闭斗鱼直播中的烦人功能，可在油猴菜单的“设置”中选择。
 // @homepageURL  https://github.com/KNaiFen/douyu-tweaks
@@ -29,6 +29,12 @@
             label: '去掉斗鱼的刀塔助手',
             defaultEnabled: true,
             run: installDotaBlocker,
+        },
+        {
+            id: 'followReplayAsOffline',
+            label: '关注页轮播主播显示为未开播',
+            defaultEnabled: true,
+            run: installFollowReplayAsOffline,
         },
     ];
     let activeDialog;
@@ -161,9 +167,87 @@
         if (settings[feature.id]) feature.run();
     }
 
+    function watchWebpackQueue(name, patchChunk) {
+        const hookedQueues = new WeakSet();
+
+        function hookQueue(queue) {
+            if (!Array.isArray(queue) || hookedQueues.has(queue)) return;
+            hookedQueues.add(queue);
+            queue.forEach(patchChunk);
+
+            function wrapPush(delegate) {
+                // Capture each delegate separately: Webpack chains the previous push callback.
+                return function (...chunks) {
+                    chunks.forEach(patchChunk);
+                    return Reflect.apply(delegate, this, chunks);
+                };
+            }
+
+            let push = wrapPush(queue.push);
+            Object.defineProperty(queue, 'push', {
+                configurable: true,
+                get: () => push,
+                set: (delegate) => { push = wrapPush(delegate); },
+            });
+        }
+
+        let queue = pageWindow[name];
+        hookQueue(queue);
+        Object.defineProperty(pageWindow, name, {
+            configurable: true,
+            enumerable: true,
+            get: () => queue,
+            set(value) {
+                queue = value;
+                hookQueue(value);
+            },
+        });
+    }
+
+    function installFollowReplayAsOffline() {
+        const patchedFactories = new WeakMap();
+        const componentPath = '/followModule/components/DyCareCover/DyCareCover.js';
+
+        watchWebpackQueue('shark_list_jsonp', (chunk) => {
+            const modules = Array.isArray(chunk) && chunk[1];
+            if (!modules || typeof modules !== 'object') return;
+
+            for (const id of Object.keys(modules)) {
+                const factory = modules[id];
+                if (typeof factory !== 'function') continue;
+                if (!patchedFactories.has(factory)) {
+                    const source = Function.prototype.toString.call(factory);
+                    let replacement = factory;
+                    if (source.includes(componentPath) && source.includes('videoLoop') && source.includes('isLive')) {
+                        replacement = function (module, exports, require) {
+                            const result = Reflect.apply(factory, this, [module, exports, require]);
+                            for (const [key, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(exports))) {
+                                if (typeof descriptor.value !== 'function' || !descriptor.writable) continue;
+                                const component = descriptor.value;
+                                Object.defineProperty(exports, key, {
+                                    ...descriptor,
+                                    value: function (props, ...args) {
+                                        // Use Douyu's offline card, including its original showTime/notice and hover actions.
+                                        const next = Number(props?.videoLoop) === 1
+                                            ? { ...props, isLive: false, videoLoop: 0 }
+                                            : props;
+                                        return Reflect.apply(component, this, [next, ...args]);
+                                    },
+                                });
+                            }
+                            return result;
+                        };
+                    }
+                    patchedFactories.set(factory, replacement);
+                    patchedFactories.set(replacement, replacement);
+                }
+                modules[id] = patchedFactories.get(factory);
+            }
+        });
+    }
+
     function installDotaBlocker() {
         const patchedFactories = new WeakMap();
-        const hookedQueues = new WeakSet();
         const patchedRegistries = new WeakSet();
         const registryGetters = new WeakMap();
         const functionSource = Function.prototype.toString;
@@ -258,43 +342,8 @@
             }
         }
 
-        function hookQueue(queue, kind) {
-            if (!Array.isArray(queue) || hookedQueues.has(queue)) return;
-            hookedQueues.add(queue);
-            queue.forEach((chunk) => patchChunk(chunk, kind));
-
-            function wrapPush(delegate) {
-                // Capture each delegate separately: Webpack chains the previous push callback.
-                return function (...chunks) {
-                    chunks.forEach((chunk) => patchChunk(chunk, kind));
-                    return Reflect.apply(delegate, this, chunks);
-                };
-            }
-
-            let push = wrapPush(queue.push);
-            Object.defineProperty(queue, 'push', {
-                configurable: true,
-                get: () => push,
-                set: (delegate) => { push = wrapPush(delegate); },
-            });
-        }
-
-        function watchQueue(name, kind) {
-            let queue = pageWindow[name];
-            hookQueue(queue, kind);
-            Object.defineProperty(pageWindow, name, {
-                configurable: true,
-                enumerable: true,
-                get: () => queue,
-                set(value) {
-                    queue = value;
-                    hookQueue(value, kind);
-                },
-            });
-        }
-
-        watchQueue('sharkLivePlayerJsonp', 'player');
-        watchQueue('shark_room_jsonp', 'room');
+        watchWebpackQueue('sharkLivePlayerJsonp', (chunk) => patchChunk(chunk, 'player'));
+        watchWebpackQueue('shark_room_jsonp', (chunk) => patchChunk(chunk, 'room'));
 
         // A visual fallback for saved pages or changed bundles; normal loading never mounts the assistant.
         function addFallbackStyle() {
