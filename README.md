@@ -1,26 +1,43 @@
 # 去掉斗鱼的刀塔助手
 
-通过 Tampermonkey（油猴）阻止斗鱼刀塔助手启动，移除视频中英雄、技能和装备的悬停交互层，以及工具栏的“刀塔助手”入口和提示窗。
+看斗鱼直播时，不再因鼠标移到英雄、技能或装备上而弹出刀塔助手，同时去掉“刀塔助手”入口和提示窗。
+
+适用于电脑浏览器中的斗鱼网页版，需要安装 Tampermonkey（油猴）。
 
 ## 安装
 
 1. 在桌面浏览器中安装并启用 [Tampermonkey](https://www.tampermonkey.net/)。
 2. 点击 [安装脚本](https://raw.githubusercontent.com/KNaiFen/douyu-dota-assistant-blocker/main/douyu-dota-assistant-blocker.user.js)，在 Tampermonkey 页面确认安装。
-3. **刷新已打开的斗鱼直播页面**，让脚本在播放器启动前生效。
+3. **刷新已打开的斗鱼直播页面**。
 
 若链接未弹出安装页面，可下载仓库中的 `douyu-dota-assistant-blocker.user.js`，通过 Tampermonkey 的导入功能安装。
 
-支持 `https://www.douyu.com/*` 顶层页面，无需构建或配置。停用脚本后刷新页面，即可恢复网站原有行为。
+## 使用
 
-## 工作方式
+安装后自动生效，不需要额外设置。打开斗鱼直播间，正常观看即可。
 
-脚本在 `document-start` 阶段阻止播放器注册 `gameHotArea` 助手模块，使组件不挂载，其数据请求、消息监听和计时器不启动。同时跳过助手工具栏和提示窗组件的初始化。
+主播战绩面板和第一视角入口不在本脚本的屏蔽范围内。
 
-脚本不使用轮询，不发起额外网络请求，不修改账号设置，也不生成日志或其他文件。
+## 更新与停用
 
-## 注意事项
+- **更新**：在 Tampermonkey 管理面板中检查脚本更新，更新后刷新直播页面。
+- **暂时停用**：在 Tampermonkey 中关闭“去掉斗鱼的刀塔助手”，然后刷新页面。
+- **卸载**：在 Tampermonkey 管理面板中删除此脚本，然后刷新页面。
 
-- 安装、升级或停用后都需刷新直播页面。加载后才注入脚本时，样式兜底只能隐藏界面。
-- 助手与其他播放器功能共享代码包，文件仍需下载和解析；屏蔽减少的是助手的运行开销。
-- 不针对独立的主播战绩面板或第一视角入口。
-- 斗鱼内部模块结构可能随网站更新而变化。若助手重新出现，可通过 [Issues](https://github.com/KNaiFen/douyu-dota-assistant-blocker/issues) 反馈。
+## 常见问题
+
+### 安装后仍然弹出刀塔助手
+
+确认 Tampermonkey 和本脚本都已启用，并允许 Tampermonkey 在斗鱼网站运行，然后刷新直播页面。如果仍未生效，先检查脚本是否有更新。
+
+### 点击安装链接后只看到代码
+
+可以从 [版本下载页](https://github.com/KNaiFen/douyu-dota-assistant-blocker/releases/latest) 下载 `.user.js` 文件，再通过 Tampermonkey 的导入功能安装。
+
+### 更新后失效，或者影响了正常观看
+
+先停用脚本并刷新页面。可以到 [问题反馈](https://github.com/KNaiFen/douyu-dota-assistant-blocker/issues) 提供浏览器名称、脚本版本和出现问题的操作步骤。截图前请遮住个人信息，不要上传 Cookie、账号凭据或完整网页存档。
+
+## 许可证
+
+[MIT](LICENSE)
